@@ -8,11 +8,11 @@ More about query parameters read at [Gravatar](https://en.gravatar.com/site/impl
 ## Examples
 
 ```elm
- gravatarImg "kuzzmi@example.com" "?s=200"
+ img defaultOptions "kuzzmi@example.com"
  -- returns image node with 200px x 200px image
  -- for "kuzzmi@example.com" email.
 
- getGravatarUrl "kuzzmi@example.com" "?s=200"
+ url defaultOptions "kuzzmi@example.com"
  -- returns url to 200px x 200px image
  -- for "kuzzmi@example.com" email.
 ```

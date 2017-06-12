@@ -1,51 +1,275 @@
-module Gravatar exposing (gravatarImg, getGravatarUrl)
+module Gravatar
+    exposing
+        ( Default(..)
+        , Options
+        , Rating(..)
+        , defaultOptions
+        , forceDefault
+        , img
+        , url
+        , withDefault
+        , withRating
+        , withSize
+        )
 
 {-| Returns URL or img DOM element for a given `email`,
 uses `options` as query parameters with URL.
 More about query parameters read at [Gravatar](https://en.gravatar.com/site/implement/images/)
 website.
 
-@docs gravatarImg
-@docs getGravatarUrl
+
+# Gravatar image
+
+@docs img, url
+
+
+# Options
+
+@docs Options, defaultOptions, Default, Rating, withSize, withRating, withDefault, forceDefault
 
 -}
 
-import MD5 exposing (hex)
-import Html exposing (Html, img)
+import Html exposing (Html)
 import Html.Attributes exposing (src)
+import Http
+import MD5 exposing (hex)
+
+
+{-| By default, if there is no (allowed) image associated with an emailaddress,
+gravatar will display the gravatar logo. However, there are other fallback
+images, too. For more explanation about these, please see [the gravatar docs][default-image].
+
+[default-image]: https://en.gravatar.com/site/implement/images/#default-image
+
+-}
+type Default
+    = None
+    | Url String
+    | FourOhFour
+    | MysteryMan
+    | Identicon
+    | MonsterID
+    | Wavatar
+    | Retro
+    | Blank
+
+
+{-| Gravatar allows adding "rating" meta-data to its avatars. By default, you
+will only get G-rated images. For more information, please see [the gravatar docs][rating].
+
+[rating]: https://en.gravatar.com/site/implement/images/#rating
+
+-}
+type Rating
+    = RatedG
+    | RatedPG
+    | RatedR
+    | RatedX
+
+
+{-| Allows specifying all the options you could possibly need for gravatar urls.
+
+[Full overview of what the options do](https://en.gravatar.com/site/implement/images/).
+
+-}
+type alias Options =
+    { size : Maybe Int
+    , default : Default
+    , rating : Rating
+    , forceDefault : Bool
+    }
+
+
+{-| Default options. Passing these results in passing no options in the final
+url at all.
+-}
+defaultOptions : Options
+defaultOptions =
+    { size = Nothing
+    , default = None
+    , rating = RatedG
+    , forceDefault = False
+    }
+
+
+{-| Sets the size to the passed in value.
+
+    defaultOptions |> withSize (Just 80)
+    --> { size = Just 80, ... }
+
+-}
+withSize : Maybe Int -> Options -> Options
+withSize size options =
+    { options | size = size }
+
+
+{-| Sets the default to the passed in value.
+
+    defaultOptions |> withDefault Retro
+    --> { default = Retro, ... }
+
+-}
+withDefault : Default -> Options -> Options
+withDefault default options =
+    { options | default = default }
+
+
+{-| Sets the rating to the passed in value.
+
+    defaultOptions |> withRating RatedPG
+    --> { rating = RatedPG, ... }
+
+-}
+withRating : Rating -> Options -> Options
+withRating rating options =
+    { options | rating = rating }
+
+
+{-| Enables the `forceDefault` flag.
+
+    defaultOptions |> forceDefault
+    --> { forceDefault = True, ... }
+
+-}
+forceDefault : Options -> Options
+forceDefault options =
+    { options | forceDefault = True }
+
+
+encodeSize : Maybe Int -> Maybe String
+encodeSize size =
+    case size of
+        Just 200 ->
+            Nothing
+
+        Just v ->
+            Just (toString v)
+
+        Nothing ->
+            Nothing
+
+
+encodeDefault : Default -> Maybe String
+encodeDefault default =
+    case default of
+        None ->
+            Nothing
+
+        Url url ->
+            Just <| Http.encodeUri url
+
+        FourOhFour ->
+            Just "404"
+
+        MysteryMan ->
+            Just "mm"
+
+        Identicon ->
+            Just "identicon"
+
+        MonsterID ->
+            Just "monsterid"
+
+        Wavatar ->
+            Just "wavatar"
+
+        Retro ->
+            Just "retro"
+
+        Blank ->
+            Just "blank"
+
+
+encodeRating : Rating -> Maybe String
+encodeRating rating =
+    case rating of
+        RatedG ->
+            Nothing
+
+        RatedPG ->
+            Just "pg"
+
+        RatedR ->
+            Just "r"
+
+        RatedX ->
+            Just "x"
+
+
+encodeForceDefault : Bool -> Maybe String
+encodeForceDefault forceDefault =
+    if forceDefault then
+        Just "y"
+    else
+        Nothing
+
+
+encodeOption : String -> Maybe String -> Maybe String
+encodeOption key val =
+    Maybe.map (\val -> key ++ "=" ++ val) val
+
+
+encodeOptions : Options -> String
+encodeOptions options =
+    let
+        optionList : List String
+        optionList =
+            [ options.size |> encodeSize |> encodeOption "s"
+            , options.default |> encodeDefault |> encodeOption "d"
+            , options.rating |> encodeRating |> encodeOption "r"
+            , options.forceDefault |> encodeForceDefault |> encodeOption "f"
+            ]
+                |> List.filterMap identity
+    in
+    case optionList of
+        [] ->
+            ""
+
+        _ ->
+            "?" ++ String.join "&" optionList
 
 
 {-| Returns img DOM element which points to Gravatar for a given `email`
 and using options as query parameters with URL
 
-    gravatarImg "kuzzmi@example.com" "?s=200"
+    img defaultOptions "kuzzmi@example.com"
     -- returns image node with 200px x 200px image
     -- for "kuzzmi@example.com" email.
 
 -}
-gravatarImg : String -> String -> Html msg
-gravatarImg email options =
-    img [ src <| getGravatarUrl email options ] []
+img : Options -> String -> Html msg
+img options email =
+    Html.img [ src <| url options email ] []
 
 
 {-| Returns URL which points to Gravatar for a given `email`
 and using options as query parameters with URL
 
-    getGravatarUrl "kuzzmi@example.com" "?s=200"
+    url defaultOptions "kuzzmi@example.com"
     -- returns url to 200px x 200px image
     -- for "kuzzmi@example.com" email.
 
--}
-getGravatarUrl : String -> String -> String
-getGravatarUrl email options =
     let
-        gravatarUrl =
-            "https://www.gravatar.com/avatar/"
-
-        gravatarHash =
-            MD5.hex email
-
-        gravatarOptions =
-            options
+        options =
+            defaultOptions
+                |> withDefault Retro
+                |> forceDefault
     in
-        gravatarUrl ++ gravatarHash ++ gravatarOptions
+    url options "kuzzme@example.com"
+    -- url to 200 x 200 image in the 'retro' format
+
+-}
+url : Options -> String -> String
+url options email =
+    "//www.gravatar.com/avatar/"
+        ++ hashEmail email
+        ++ encodeOptions options
+
+
+hashEmail : String -> String
+hashEmail email =
+    -- https://en.gravatar.com/site/implement/hash/
+    email
+        |> String.trim
+        |> String.toLower
+        |> MD5.hex

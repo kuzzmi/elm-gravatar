@@ -1,16 +1,7 @@
-module Gravatar
-    exposing
-        ( Default(..)
-        , Options
-        , Rating(..)
-        , defaultOptions
-        , forceDefault
-        , img
-        , url
-        , withDefault
-        , withRating
-        , withSize
-        )
+module Gravatar exposing
+    ( img, url
+    , Options, defaultOptions, Default(..), Rating(..), withSize, withRating, withDefault, forceDefault
+    )
 
 {-| Returns URL or img DOM element for a given `email`,
 uses `options` as query parameters with URL.
@@ -31,7 +22,6 @@ website.
 
 import Html exposing (Html)
 import Html.Attributes exposing (src)
-import Http
 import MD5 exposing (hex)
 
 
@@ -143,7 +133,7 @@ encodeSize size =
             Nothing
 
         Just v ->
-            Just (toString v)
+            Just <| String.fromInt v
 
         Nothing ->
             Nothing
@@ -155,8 +145,8 @@ encodeDefault default =
         None ->
             Nothing
 
-        Url url ->
-            Just <| Http.encodeUri url
+        Url url_ ->
+            Just url_
 
         FourOhFour ->
             Just "404"
@@ -197,16 +187,17 @@ encodeRating rating =
 
 
 encodeForceDefault : Bool -> Maybe String
-encodeForceDefault forceDefault =
-    if forceDefault then
+encodeForceDefault toForceDefault =
+    if toForceDefault then
         Just "y"
+
     else
         Nothing
 
 
 encodeOption : String -> Maybe String -> Maybe String
 encodeOption key val =
-    Maybe.map (\val -> key ++ "=" ++ val) val
+    Maybe.map (\v -> key ++ "=" ++ v) val
 
 
 encodeOptions : Options -> String
